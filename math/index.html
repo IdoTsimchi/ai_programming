@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MathLab Demo</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="top">
+    <div class="brand">∑ MathLab <span>demo</span></div>
+    <nav>
+      <a href="#linalg">Linear Algebra 2</a>
+      <a href="#infi">Infi 2</a>
+      <a href="#practice">Practice</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero">
+      <h1>See it. Drag it. Then prove it.</h1>
+      <p>Two interactive lessons from the hardest courses in the degree. Everything runs in your browser, with no server and no libraries.</p>
+    </section>
+
+    <!-- ============ LINEAR ALGEBRA ============ -->
+    <section id="linalg" class="lesson">
+      <div class="tag">Linear Algebra 2 · Eigenvalues</div>
+      <h2>A matrix is a transformation of the plane</h2>
+      <p class="lead">
+        The matrix <b>A</b> sends the basis vector <span class="e1">e₁</span> to its first column and
+        <span class="e2">e₂</span> to its second. <b>Drag the two colored arrow tips</b> to edit the matrix.
+        The <span class="eig">gold lines</span> are eigen-directions: vectors on them are only stretched, never turned.
+      </p>
+
+      <div class="widget">
+        <div class="canvas-wrap"><canvas id="laCanvas"></canvas></div>
+        <div class="panel">
+          <div class="matrix-edit">
+            <span class="bracket">[</span>
+            <div class="grid2">
+              <input type="number" step="0.05" id="m-a" aria-label="a">
+              <input type="number" step="0.05" id="m-b" aria-label="b">
+              <input type="number" step="0.05" id="m-c" aria-label="c">
+              <input type="number" step="0.05" id="m-d" aria-label="d">
+            </div>
+            <span class="bracket">]</span>
+          </div>
+
+          <div class="presets" id="laPresets"></div>
+          <button id="morphBtn" class="primary">▶ Morph from identity</button>
+
+          <dl class="readout" id="laReadout"></dl>
+        </div>
+      </div>
+
+      <details class="theory">
+        <summary>Why this works</summary>
+        <p>λ is an eigenvalue of A exactly when <code>det(A − λI) = 0</code>, which for a 2×2 matrix is
+        <code>λ² − tr(A)·λ + det(A) = 0</code>. When the discriminant is negative there are no real eigen-directions,
+        so every vector turns (try “Rotate 45°”). When <code>det(A) = 0</code> the plane collapses onto a line.</p>
+      </details>
+    </section>
+
+    <!-- ============ INFI 2 ============ -->
+    <section id="infi" class="lesson">
+      <div class="tag">Infi 2 · Gradient &amp; directional derivative</div>
+      <h2>Which way is uphill?</h2>
+      <p class="lead">
+        The colors show the height of a surface <b>z = f(x, y)</b> and the thin lines are level curves.
+        <b>Drag the white point</b>, then turn the direction <b>u</b>. The slope in direction u is
+        <code>D<sub>u</sub>f = ∇f · u</code>, which is largest when u points along the gradient.
+      </p>
+
+      <div class="widget">
+        <div class="canvas-wrap"><canvas id="surfCanvas"></canvas></div>
+        <div class="panel">
+          <label class="field">Surface
+            <select id="fnSelect"></select>
+          </label>
+          <label class="field">Direction u: <b id="thetaLabel">45°</b>
+            <input type="range" id="theta" min="0" max="359" value="45">
+          </label>
+          <button id="alignBtn" class="primary">Point u along ∇f</button>
+
+          <canvas id="slopeCanvas" aria-label="Directional derivative vs angle"></canvas>
+          <div class="caption">Slope D<sub>u</sub>f as you turn u through 360°.</div>
+
+          <dl class="readout" id="surfReadout"></dl>
+        </div>
+      </div>
+
+      <details class="theory">
+        <summary>Why this works</summary>
+        <p>By Cauchy–Schwarz, <code>∇f · u = |∇f| cos φ</code>, where φ is the angle between u and ∇f.
+        So the steepest ascent is at φ = 0 with rate |∇f|, and u is tangent to the level curve (slope 0) at φ = ±90°.
+        This is why the gradient is always perpendicular to level curves, and the reason Lagrange multipliers work.</p>
+      </details>
+    </section>
+
+    <!-- ============ PRACTICE ============ -->
+    <section id="practice" class="lesson">
+      <div class="tag">Practice</div>
+      <h2>Find the eigenvalues</h2>
+      <div class="widget single">
+        <div class="problem">
+          <div class="prob-matrix" id="probMatrix"></div>
+          <label class="field">Eigenvalues (separate with commas)
+            <input type="text" id="probAnswer" placeholder="e.g. 2, -1" autocomplete="off">
+          </label>
+          <div class="row">
+            <button id="checkBtn" class="primary">Check</button>
+            <button id="hintBtn">Hint</button>
+            <button id="showBtn">See it in the plane ↑</button>
+            <button id="nextBtn">New problem</button>
+          </div>
+          <div id="probFeedback" class="feedback" role="status"></div>
+          <div class="score">Solved: <b id="solvedCount">0</b> · Streak: <b id="streakCount">0</b></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>Built with AI as a course demo · plain HTML, CSS &amp; JavaScript · hosted on GitHub Pages</footer>
+  <script src="script.js"></script>
+</body>
+</html>
