@@ -118,3 +118,15 @@ select, input[type=number], input[type=text] { width: 100%; padding: 7px 10px; b
 /* small-screen safety */
 .proof-title, .step-title, .step-body { overflow-wrap: anywhere; }
 .statement, .viz-intro, .memo-formula { overflow-x: auto; }
+
+/* figure banner + step linking */
+.fig-banner { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; padding: 10px 14px; margin: 6px 0 10px; border-radius: 12px;
+  background: color-mix(in srgb, var(--cc) 12%, var(--panel)); border: 1px solid color-mix(in srgb, var(--cc) 45%, var(--line)); font-size: .93rem; }
+.fig-banner::before { content: "\1F4FA  The figure shows"; font-weight: 700; color: var(--cc); font-size: .78rem; text-transform: uppercase; letter-spacing: .05em; }
+.fig-banner .chip { background: var(--cc); color: #0b0e1b; font-weight: 700; border-radius: 999px; padding: 1px 10px; font-size: .8rem; }
+.fig-banner .chip.all { background: var(--panel-2); color: var(--text); border: 1px solid var(--line); }
+.fig-banner .link { background: none; border: none; color: var(--accent); text-decoration: underline; padding: 0; font-size: .85rem; }
+.show-btn { margin-top: 8px; font-size: .82rem; padding: 5px 10px; border-color: var(--cc); color: var(--text); }
+.steps li.active { border-color: var(--cc); box-shadow: 0 0 0 2px color-mix(in srgb, var(--cc) 35%, transparent); }
+.steps li.hidden .show-btn { display: none; }
+canvas.stage-canvas.rot { cursor: grab; }

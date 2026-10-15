@@ -12,11 +12,12 @@
     title: "Eigenvectors of distinct eigenvalues are independent",
     blurb: "A single line cannot carry two different eigenvalues, so v₂ can never fall onto the line of v₁.",
     statement: String.raw`Let \(T\) be a linear operator and \(v_1,\dots,v_k\) eigenvectors with <b>pairwise distinct</b> eigenvalues \(\lambda_1,\dots,\lambda_k\). Then \(v_1,\dots,v_k\) are linearly independent.`,
+    shows: String.raw`The statement for \(k=2\): two eigenvectors \(v_1,v_2\) with eigenvalues \(\lambda_1\ne\lambda_2\), and the matrix \(A\) that has exactly these eigenpairs, drawn as the image of the unit circle (gold ellipse). Sliding \(v_2\) onto the line of \(v_1\) shows why independence is forced.`,
     vizIntro: String.raw`<b>Drag the tips of <span style="color:#ff6b8b">v₁</span> and <span style="color:#4fd1a5">v₂</span></b> and set \(\lambda_1\ne\lambda_2\). The unique matrix with \(Av_1=\lambda_1v_1,\ Av_2=\lambda_2v_2\) turns the unit circle into the <span style="color:#ffcc4d">gold ellipse</span>. Push \(v_2\) toward the line of \(v_1\): the ellipse explodes, and exactly on that line <i>no such matrix exists</i>. Set \(\lambda_1=\lambda_2\) and the problem disappears (\(A=\lambda I\)).`,
 
     viz(box) {
       const st = ML.stage(box, { x: [-4, 4], y: [-4, 4] });
-      const S = { v1: { x: 2, y: 0.5 }, v2: { x: 0.7, y: 2.2 }, l1: 2, l2: -1 };
+      const S = { v1: { x: 2, y: 0.5 }, v2: { x: 0.7, y: 2.2 }, l1: 2, l2: -1, focus: -1 };
       const s1 = ML.slider(st.panel, { label: "λ₁", min: -3, max: 3, step: 0.1, value: S.l1, onInput: (v) => { S.l1 = v; st.redraw(); } });
       const s2 = ML.slider(st.panel, { label: "λ₂", min: -3, max: 3, step: 0.1, value: S.l2, onInput: (v) => { S.l2 = v; st.redraw(); } });
       const row = ML.h("div", { class: "btn-row" }); st.panel.append(row);
@@ -37,18 +38,32 @@
 
       st.draw((v) => {
         v.grid(1); v.axes();
-        const a = [S.v1.x, S.v1.y], b = [S.v2.x, S.v2.y], r = calc();
+        const a = [S.v1.x, S.v1.y], b = [S.v2.x, S.v2.y], r = calc(), f = S.focus;
         if (!r.zero) {
           if (norm(a) > 1e-6) v.line(-a[0] * 12, -a[1] * 12, a[0] * 12, a[1] * 12, "rgba(255,107,139,.28)", 1.5, [6, 6]);
-          if (norm(b) > 1e-6) v.line(-b[0] * 12, -b[1] * 12, b[0] * 12, b[1] * 12, "rgba(79,209,165,.28)", 1.5, [6, 6]);
+          if (f !== 0 && norm(b) > 1e-6) v.line(-b[0] * 12, -b[1] * 12, b[0] * 12, b[1] * 12, "rgba(79,209,165,.28)", 1.5, [6, 6]);
         }
         v.circle(0, 0, 1, C.dim, "rgba(255,255,255,.05)", 1.5, [4, 4]);
-        if (r.A) {
+        if (r.A && f !== 0) {
           v.path((t) => la.mulV(r.A, [Math.cos(t), Math.sin(t)]), 0, TAU, C.gold, 2.5, 360);
           v.dot(S.l1 * a[0], S.l1 * a[1], C.pink, 4); v.dot(S.l2 * b[0], S.l2 * b[1], C.green, 4);
         }
-        v.arrow(0, 0, a[0], a[1], C.pink, 3.5); v.arrow(0, 0, b[0], b[1], C.green, 3.5);
-        v.handle(a[0], a[1], C.pink, "v₁"); v.handle(b[0], b[1], C.green, "v₂");
+        if (f === 2 && r.A) { // step 3: apply A, each vector is stretched by its own eigenvalue
+          v.arrow(a[0], a[1], S.l1 * a[0], S.l1 * a[1], C.pink, 2.5); v.text("Av₁ = λ₁v₁", (1 + S.l1) / 2 * a[0], (1 + S.l1) / 2 * a[1], C.pink, 8, 18);
+          v.arrow(b[0], b[1], S.l2 * b[0], S.l2 * b[1], C.green, 2.5); v.text("Av₂ = λ₂v₂", (1 + S.l2) / 2 * b[0], (1 + S.l2) / 2 * b[1], C.green, 8, 18);
+          v.text("apply A: every eigenvector is only stretched, by its own λ", 0, 3.55, C.text, 0, 0, "700 13px system-ui", "center");
+        }
+        if (f === 3 && !r.zero) { // step 4: (A − λ₂I) kills v₂ and keeps v₁ on its line, scaled by λ₁ − λ₂
+          const k = S.l1 - S.l2;
+          v.arrow(0, 0, k * a[0], k * a[1], C.orange, 4);
+          v.text("(A−λ₂I)v₁ = (λ₁−λ₂)v₁", 0, 3.55, C.orange, 0, 0, "700 13px system-ui", "center");
+          v.text("(A−λ₂I)v₂ = 0", 0, 3.15, C.white, 0, 0, "700 13px system-ui", "center");
+          v.dot(0, 0, C.white, 7, C.bg);
+        }
+        v.arrow(0, 0, a[0], a[1], C.pink, 3.5); if (f !== 0) v.arrow(0, 0, b[0], b[1], C.green, 3.5);
+        v.handle(a[0], a[1], C.pink, "v₁"); if (f !== 0) v.handle(b[0], b[1], C.green, "v₂");
+        if (f === 0) v.text("k = 1: one nonzero vector spans a line, so {v₁} is independent", 0, 3.55, C.text, 0, 0, "700 13px system-ui", "center");
+        if (f === 5 && !r.zero) v.text(`two different lines (sin = ${ML.fmt(r.sin, 3)}): independent, and A stays finite`, 0, 3.55, C.green, 0, 0, "700 13px system-ui", "center");
         if (r.A === null && !r.zero) v.text("no such matrix exists", 0, 3.5, C.red, 0, 0, "700 15px system-ui", "center");
       });
 
@@ -71,18 +86,29 @@
       };
 
       ML.drag(st, () => [S.v1, S.v2], (i, x, y) => { (i === 0 ? S.v1 : S.v2).x = x; (i === 0 ? S.v1 : S.v2).y = y; }, { snap: 0.05, clamp: [-3.9, 3.9, -3.9, 3.9] });
+      let saved = null;
       st.redraw();
+      return {
+        showStep(i) {
+          if (i === 6) { // slide v2 onto the line of v1 (with different eigenvalues): no matrix exists
+            if (!saved) saved = { v2: { ...S.v2 }, l1: S.l1, l2: S.l2 };
+            S.v2 = { x: S.v1.x * 0.5, y: S.v1.y * 0.5 };
+            if (Math.abs(S.l1 - S.l2) < 0.5) { S.l2 = S.l1 > 0 ? -1 : 1; s2.set(S.l2); }
+          } else if (saved) { S.v2 = saved.v2; S.l1 = saved.l1; S.l2 = saved.l2; s1.set(S.l1); s2.set(S.l2); saved = null; }
+          S.focus = i; st.redraw();
+        },
+      };
     },
 
     idea: String.raw`If a combination \(\sum c_iv_i=0\) existed, apply \(A\) and subtract \(\lambda_k\) times the original: this kills the last vector and leaves a shorter relation with nonzero coefficients \((\lambda_i-\lambda_k)c_i\). Induction finishes it.`,
     steps: [
-      { t: String.raw`Induct on \(k\). Base case \(k=1\).`, d: String.raw`An eigenvector is nonzero by definition, so \(\{v_1\}\) is independent.` },
+      { fig: String.raw`Step 1 (\(k=1\)): only \(v_1\) is drawn. One nonzero eigenvector spans a line, so it is independent. \(v_2\) and the matrix are hidden.`, t: String.raw`Induct on \(k\). Base case \(k=1\).`, d: String.raw`An eigenvector is nonzero by definition, so \(\{v_1\}\) is independent.` },
       { t: String.raw`Induction hypothesis.`, d: String.raw`Any \(k-1\) eigenvectors with pairwise distinct eigenvalues are independent. Let \(v_1,\dots,v_k\) have distinct \(\lambda_i\), and suppose \(c_1v_1+\dots+c_kv_k=0\;\;(\ast)\).` },
-      { t: String.raw`Apply \(A\) to \((\ast)\).`, d: String.raw`Since \(Av_i=\lambda_iv_i\): \(\;c_1\lambda_1v_1+\dots+c_k\lambda_kv_k=0\;\;(\ast\ast)\).` },
-      { t: String.raw`Multiply \((\ast)\) by \(\lambda_k\) and subtract from \((\ast\ast)\).`, d: String.raw`The \(v_k\)-terms cancel: \(\;c_1(\lambda_1-\lambda_k)v_1+\dots+c_{k-1}(\lambda_{k-1}-\lambda_k)v_{k-1}=0.\)` },
+      { fig: String.raw`Step 3: applying \(A\). Each eigenvector is stretched by its own eigenvalue: the pink arrow runs from \(v_1\) to \(\lambda_1v_1\), the green one from \(v_2\) to \(\lambda_2v_2\). Change \(\lambda_1,\lambda_2\) with the sliders.`, t: String.raw`Apply \(A\) to \((\ast)\).`, d: String.raw`Since \(Av_i=\lambda_iv_i\): \(\;c_1\lambda_1v_1+\dots+c_k\lambda_kv_k=0\;\;(\ast\ast)\).` },
+      { fig: String.raw`Step 4: the map \(A-\lambda_2I\). It sends \(v_2\) to \(0\) (white dot at the origin) and \(v_1\) to \((\lambda_1-\lambda_2)v_1\) (orange arrow): still on the line of \(v_1\), and nonzero because \(\lambda_1\ne\lambda_2\).`, t: String.raw`Multiply \((\ast)\) by \(\lambda_k\) and subtract from \((\ast\ast)\).`, d: String.raw`The \(v_k\)-terms cancel: \(\;c_1(\lambda_1-\lambda_k)v_1+\dots+c_{k-1}(\lambda_{k-1}-\lambda_k)v_{k-1}=0.\)` },
       { t: String.raw`Use the induction hypothesis.`, d: String.raw`\(v_1,\dots,v_{k-1}\) are independent, so \(c_i(\lambda_i-\lambda_k)=0\) for all \(i\lt k\). The eigenvalues are distinct, so \(\lambda_i-\lambda_k\ne0\), hence \(c_i=0\) for \(i\lt k\).` },
-      { t: String.raw`Finish.`, d: String.raw`Now \((\ast)\) reads \(c_kv_k=0\). Since \(v_k\ne0\), \(c_k=0\). All coefficients vanish, so \(v_1,\dots,v_k\) are independent. \(\blacksquare\)` },
-      { t: String.raw`The picture for \(k=2\).`, d: String.raw`If \(v_2=cv_1\) then \(Av_2=\lambda_2cv_1\) and \(Av_2=cAv_1=\lambda_1cv_1\), forcing \(\lambda_1=\lambda_2\). Two distinct eigenvalues cannot live on the same line.` },
+      { fig: String.raw`Step 6: the conclusion. \(v_1\) and \(v_2\) lie on two different lines, so they are independent, and the matrix \(A\) with these eigenpairs is finite (gold ellipse).`, t: String.raw`Finish.`, d: String.raw`Now \((\ast)\) reads \(c_kv_k=0\). Since \(v_k\ne0\), \(c_k=0\). All coefficients vanish, so \(v_1,\dots,v_k\) are independent. \(\blacksquare\)` },
+      { fig: String.raw`Step 7: the picture for \(k=2\). \(v_2\) has been slid onto the line of \(v_1\) while \(\lambda_1\ne\lambda_2\): the ellipse disappears because no matrix can have two different eigenvalues on one line.`, t: String.raw`The picture for \(k=2\).`, d: String.raw`If \(v_2=cv_1\) then \(Av_2=\lambda_2cv_1\) and \(Av_2=cAv_1=\lambda_1cv_1\), forcing \(\lambda_1=\lambda_2\). Two distinct eigenvalues cannot live on the same line.` },
     ],
     memorize: {
       formula: String.raw`\lambda_i\ne\lambda_j\ (i\ne j)\ \Longrightarrow\ v_1,\dots,v_k\ \text{independent}`,
@@ -107,11 +133,12 @@
     title: "Symmetric matrices: real eigenvalues, orthogonal eigenvectors",
     blurb: "For A = Aᵀ the discriminant is a sum of squares, and (λ−μ)⟨v,w⟩ = 0 forces orthogonality.",
     statement: String.raw`Let \(A\) be a real symmetric matrix. Then (a) every eigenvalue of \(A\) is real, and (b) eigenvectors belonging to distinct eigenvalues are orthogonal.`,
+    shows: String.raw`The statement for a real symmetric \(2\times2\) matrix: its two eigen-lines (pink and green) always meet at a right angle, and the right triangle below the figure shows that the discriminant \((a-d)^2+4b^2\) is a squared length, hence never negative.`,
     vizIntro: String.raw`<b>Change \(a,b,d\)</b> in \(A=\begin{pmatrix}a&b\\b&d\end{pmatrix}\). The eigenvectors always meet at a right angle, and the discriminant \((a-d)^2+4b^2\) is the squared hypotenuse of the right triangle below, so it can never be negative.`,
 
     viz(box) {
       const st = ML.stage(box, { x: [-4, 4], y: [-4, 4] });
-      const S = { a: 2, b: 1.2, d: -0.5 };
+      const S = { a: 2, b: 1.2, d: -0.5, focus: -1 };
       const sl = (k, label) => ML.slider(st.panel, { label, min: -2.5, max: 2.5, step: 0.1, value: S[k], onInput: (v) => { S[k] = v; st.redraw(); } });
       const sa = sl("a", "a"), sb = sl("b", "b"), sd = sl("d", "d");
       const row = ML.h("div", { class: "btn-row" }); st.panel.append(row);
@@ -138,18 +165,32 @@
           v.arrow(0, 0, p.v[0], p.v[1], C.pink, 3.5); v.arrow(0, 0, q.v[0], q.v[1], C.green, 3.5);
           v.text("v₁ (λ₁=" + ML.fmt(p.l) + ")", p.v[0], p.v[1], C.pink, 8, -8);
           v.text("v₂ (λ₂=" + ML.fmt(q.l) + ")", q.v[0], q.v[1], C.green, 8, -8);
-        }
+          const f = S.focus;
+          if (f === 1 || f === 2) { // steps 2-3: eigenvalues are real stretch factors along the eigen-lines
+            v.dot(p.l * p.v[0], p.l * p.v[1], C.pink, 7); v.text("Av₁ = λ₁v₁", p.l * p.v[0], p.l * p.v[1], C.pink, 8, 18);
+            v.dot(q.l * q.v[0], q.l * q.v[1], C.green, 7); v.text("Av₂ = λ₂v₂", q.l * q.v[0], q.l * q.v[1], C.green, 8, 18);
+            v.text("λ₁ and λ₂ are real stretch factors along the two eigen-lines", 0, 3.55, C.gold, 0, 0, "700 13px system-ui", "center");
+          }
+          if (f === 3 || f === 4) { // steps 4-5: the right angle between the eigenvectors
+            const k = 0.6, m = [(p.v[0] + q.v[0]) * k, (p.v[1] + q.v[1]) * k];
+            v.line(p.v[0] * k, p.v[1] * k, m[0], m[1], C.gold, 3.5); v.line(q.v[0] * k, q.v[1] * k, m[0], m[1], C.gold, 3.5);
+            v.text(f === 3 ? `⟨Av₁,v₂⟩ = ⟨v₁,Av₂⟩ (A symmetric)` : `(λ₁−λ₂)⟨v₁,v₂⟩ = 0, λ₁≠λ₂  ⇒  v₁ ⟂ v₂`, 0, 3.55, C.gold, 0, 0, "700 13px system-ui", "center");
+          }
+          if (f === 5) v.text("λ₁ − λ₂ = hypotenuse of the triangle below: always real", 0, 3.55, C.gold, 0, 0, "700 13px system-ui", "center");
+        } else if (S.focus >= 0) v.text("a = d, b = 0: A = aI, every vector is an eigenvector", 0, 3.55, C.gold, 0, 0, "700 13px system-ui", "center");
       });
 
       tri.draw((g) => {
         const L = S.a - S.d, H = 2 * S.b;
         g.axes("#262c52");
-        g.poly([[0, 0], [L, 0], [L, H]], "rgba(108,140,255,.18)", C.blue, 2);
+        const hot = S.focus === 5;
+        g.poly([[0, 0], [L, 0], [L, H]], hot ? "rgba(108,140,255,.4)" : "rgba(108,140,255,.18)", hot ? C.gold : C.blue, hot ? 4 : 2);
         const k = 0.35, sx = Math.sign(L) || 1, sy = Math.sign(H) || 1;
         g.poly([[L, 0], [L - sx * k, 0], [L - sx * k, sy * k], [L, sy * k]], null, C.white, 1);
         g.text("a−d = " + ML.fmt(L), L / 2, 0, C.gold, 0, 16, "600 11px system-ui", "center");
         g.text("2b = " + ML.fmt(H), L, H / 2, C.green, L >= 0 ? 6 : -6, 0, "600 11px system-ui", L >= 0 ? "left" : "right");
         g.text("λ₁−λ₂ = " + ML.fmt(Math.hypot(L, H)), L / 2, H / 2, C.pink, -4, -6, "700 11px system-ui", "right");
+        if (hot) g.text("(a−d)² + (2b)² = (λ₁−λ₂)²", 0, -4.4, C.gold, 0, 0, "700 11px system-ui", "center");
       });
 
       st.after = () => {
@@ -168,16 +209,17 @@
         }
       };
       st.redraw();
+      return { showStep(i) { S.focus = i; st.redraw(); } };
     },
 
     idea: String.raw`Symmetry means \(\langle Av,w\rangle=\langle v,Aw\rangle\). Evaluate it on eigenvectors: \(\lambda\|v\|^2=\bar\lambda\|v\|^2\) shows \(\lambda\) is real, and \(\lambda\langle v,w\rangle=\mu\langle v,w\rangle\) forces \(\langle v,w\rangle=0\).`,
     steps: [
       { t: String.raw`Symmetry in terms of the inner product.`, d: String.raw`On \(\mathbb C^n\) use \(\langle x,y\rangle=x^{T}\bar y\). For real \(A=A^{T}\): \(\langle Av,w\rangle=v^{T}A^{T}\bar w=v^{T}A\bar w=v^{T}\overline{Aw}=\langle v,Aw\rangle\).` },
-      { t: String.raw`(a) Eigenvalues are real.`, d: String.raw`Let \(Av=\lambda v\), \(v\ne0\) in \(\mathbb C^n\). Then \(\lambda\|v\|^2=\langle Av,v\rangle=\langle v,Av\rangle=\langle v,\lambda v\rangle=\bar\lambda\|v\|^2\).` },
-      { t: String.raw`Cancel \(\|v\|^2\ne0\).`, d: String.raw`\(\lambda=\bar\lambda\), so \(\lambda\in\mathbb R\). For real \(\lambda\), the real matrix \(A-\lambda I\) is singular, so a <i>real</i> eigenvector exists.` },
-      { t: String.raw`(b) Orthogonality.`, d: String.raw`Let \(Av=\lambda v\), \(Aw=\mu w\) with \(\lambda\ne\mu\) (both real by (a)). Then \(\lambda\langle v,w\rangle=\langle Av,w\rangle=\langle v,Aw\rangle=\bar\mu\langle v,w\rangle=\mu\langle v,w\rangle\).` },
-      { t: String.raw`Conclude.`, d: String.raw`\((\lambda-\mu)\langle v,w\rangle=0\) and \(\lambda-\mu\ne0\), so \(\langle v,w\rangle=0\). \(\blacksquare\)` },
-      { t: String.raw`Sanity check in \(2\times2\).`, d: String.raw`The characteristic polynomial \(\lambda^2-(a+d)\lambda+(ad-b^2)\) has discriminant \((a+d)^2-4(ad-b^2)=(a-d)^2+4b^2\ge0\): real roots, and \(\lambda_1-\lambda_2\) is the hypotenuse of the triangle with legs \(a-d\) and \(2b\).` },
+      { fig: String.raw`Step 2: in the real \(2\times2\) case the eigenvalues are the stretch factors of \(A\). The pink and green dots are \(Av_1=\lambda_1v_1\) and \(Av_2=\lambda_2v_2\), on the two eigen-lines of the gold ellipse.`, t: String.raw`(a) Eigenvalues are real.`, d: String.raw`Let \(Av=\lambda v\), \(v\ne0\) in \(\mathbb C^n\). Then \(\lambda\|v\|^2=\langle Av,v\rangle=\langle v,Av\rangle=\langle v,\lambda v\rangle=\bar\lambda\|v\|^2\).` },
+      { fig: String.raw`Step 3: \(\lambda=\bar\lambda\) means no rotation part, so the stretch factors are real numbers. The figure shows both real factors; the triangle below explains why they can never become complex.`, t: String.raw`Cancel \(\|v\|^2\ne0\).`, d: String.raw`\(\lambda=\bar\lambda\), so \(\lambda\in\mathbb R\). For real \(\lambda\), the real matrix \(A-\lambda I\) is singular, so a <i>real</i> eigenvector exists.` },
+      { fig: String.raw`Step 4: two eigenvectors for different eigenvalues, \(v_1\) (pink) and \(v_2\) (green), with the right-angle mark between them. The readout lists \(\langle Av_1,v_2\rangle\) and \(\langle v_1,Av_2\rangle\): equal because \(A\) is symmetric.`, t: String.raw`(b) Orthogonality.`, d: String.raw`Let \(Av=\lambda v\), \(Aw=\mu w\) with \(\lambda\ne\mu\) (both real by (a)). Then \(\lambda\langle v,w\rangle=\langle Av,w\rangle=\langle v,Aw\rangle=\bar\mu\langle v,w\rangle=\mu\langle v,w\rangle\).` },
+      { fig: String.raw`Step 5: \((\lambda_1-\lambda_2)\langle v_1,v_2\rangle=0\) with \(\lambda_1\ne\lambda_2\) forces \(\langle v_1,v_2\rangle=0\): the right angle (gold) between the eigen-lines. Change \(a,b,d\) and it never opens or closes.`, t: String.raw`Conclude.`, d: String.raw`\((\lambda-\mu)\langle v,w\rangle=0\) and \(\lambda-\mu\ne0\), so \(\langle v,w\rangle=0\). \(\blacksquare\)` },
+      { fig: String.raw`Step 6: the right triangle below the figure has legs \(a-d\) and \(2b\) and hypotenuse \(\lambda_1-\lambda_2\). The discriminant is its squared hypotenuse, so it is never negative: the eigenvalues are real.`, t: String.raw`Sanity check in \(2\times2\).`, d: String.raw`The characteristic polynomial \(\lambda^2-(a+d)\lambda+(ad-b^2)\) has discriminant \((a+d)^2-4(ad-b^2)=(a-d)^2+4b^2\ge0\): real roots, and \(\lambda_1-\lambda_2\) is the hypotenuse of the triangle with legs \(a-d\) and \(2b\).` },
     ],
     memorize: {
       formula: String.raw`A=A^{T}\ \Rightarrow\ \lambda\in\mathbb R,\qquad (\lambda-\mu)\langle v,w\rangle=0\ \Rightarrow\ v\perp w`,
@@ -202,15 +244,21 @@
     title: "Cayley–Hamilton (diagonalizable case)",
     blurb: "p(A) vanishes on every eigenvector because p(λ) = 0, so it vanishes on a whole basis.",
     statement: String.raw`Let \(p(\lambda)=\det(\lambda I-A)\) be the characteristic polynomial of \(A\). Then \(p(A)=0\). For \(2\times2\): \(\;A^2-\operatorname{tr}(A)\,A+\det(A)\,I=0\). Here we prove it when \(A\) is diagonalizable.`,
+    shows: String.raw`The statement for a \(2\times2\) matrix: for an eigenvector \(v\) the three terms of \(p(A)v=\lambda^2v-\operatorname{tr}(A)\lambda v+\det(A)v\) are drawn as arrows laid head to tail. They always close up at the origin, and the readout checks \(A^2-\operatorname{tr}(A)A+\det(A)I=0\).`,
     vizIntro: String.raw`<b>Edit the entries of \(A\).</b> The chain of three arrows is \(p(A)v=\lambda^2v-\operatorname{tr}(A)\lambda v+\det(A)v\) for an eigenvector \(v\). Because \(\lambda\) is a root of \(p\), the chain always closes up at the origin.`,
 
     viz(box) {
       const st = ML.stage(box, { x: [-4.2, 4.2], y: [-4.2, 4.2] });
-      const S = { a: 2, b: 1, c: 1, d: 3, which: 0 };
+      const S = { a: 2, b: 1, c: 1, d: 3, which: 0, focus: -1, prog: 1 };
       ["a", "b", "c", "d"].forEach((k) => ML.slider(st.panel, { label: k, min: -3, max: 3, step: 0.1, value: S[k], onInput: (v) => { S[k] = v; st.redraw(); } }));
       ML.select(st.panel, { label: "Eigenvector to follow", options: [["0", "v₁ (λ₁)"], ["1", "v₂ (λ₂)"]], onChange: (v) => { S.which = +v; st.redraw(); } });
       const out = ML.readout(st.panel);
       const mat = () => [[S.a, S.b], [S.c, S.d]];
+      const Zmat = () => { // p(A) = A² − tr·A + det·I
+        const A = mat(), tr = A[0][0] + A[1][1], det = A[0][0] * A[1][1] - A[0][1] * A[1][0], A2 = la.mul(A, A);
+        return [[A2[0][0] - tr * A[0][0] + det, A2[0][1] - tr * A[0][1]], [A2[1][0] - tr * A[1][0], A2[1][1] - tr * A[1][1] + det]];
+      };
+      const anim = ML.loop(st, (dt) => { S.prog = Math.min(1, S.prog + dt / 1.6); return S.prog < 1; });
 
       function pairs() {
         const E = la.eig(mat());
@@ -224,6 +272,28 @@
         const { E, list } = pairs();
         if (!list.length) { v.text("complex eigenvalues: no real arrows", 0, 0, C.dim, 0, -20, "600 14px system-ui", "center"); return; }
         const pr = list[Math.min(S.which, list.length - 1)], l = pr.l, tr = E.tr, det = E.det;
+        if (S.focus === 1) { // step 2: A^k v = λ^k v, all on the eigen-line
+          const vv = pr.v, nn = [-vv[1], vv[0]], m = Math.max(1, Math.abs(l), l * l), s = 3.4 / m;
+          v.line(-vv[0] * 8, -vv[1] * 8, vv[0] * 8, vv[1] * 8, "rgba(255,255,255,.18)", 1.5, [6, 6]);
+          [[1, "v", C.white, 0], [l, "Av = λv", C.cyan, 0.45], [l * l, "A²v = λ²v", C.orange, 0.9]].forEach(([k, name, col, off]) => {
+            v.arrow(nn[0] * off, nn[1] * off, vv[0] * s * k + nn[0] * off, vv[1] * s * k + nn[1] * off, col, 3.5);
+            v.text(name, vv[0] * s * k + nn[0] * off, vv[1] * s * k + nn[1] * off, col, 8, -8, "600 12px system-ui");
+          });
+          v.text("A^k v = λ^k v : every power stays on the eigen-line", 0, 3.9, C.text, 0, 0, "700 13px system-ui", "center");
+          return;
+        }
+        if (S.focus === 4) { // step 5: p(A) is zero on a basis, hence on the whole plane
+          const Z = Zmat(), P = S.prog, pts = [];
+          for (let k = 0; k < 16; k++) { const t = TAU * k / 16, r = k % 2 ? 1.6 : 3; pts.push([r * Math.cos(t), r * Math.sin(t)]); }
+          v.circle(0, 0, 3, "rgba(255,255,255,.15)", null, 1, [4, 4]); v.circle(0, 0, 1.6, "rgba(255,255,255,.15)", null, 1, [4, 4]);
+          pts.forEach((x) => {
+            const Zx = la.mulV(Z, x), cur = [(1 - P) * x[0] + P * Zx[0], (1 - P) * x[1] + P * Zx[1]];
+            v.line(x[0], x[1], cur[0], cur[1], "rgba(255,204,77,.35)", 1); v.dot(cur[0], cur[1], C.gold, 5);
+          });
+          v.dot(0, 0, C.white, 6, C.bg);
+          v.text(P < 1 ? "applying p(A) to many vectors x ..." : "p(A)x = 0 for every x: all points collapsed to the origin", 0, 3.9, C.gold, 0, 0, "700 13px system-ui", "center");
+          return;
+        }
         const c = [l * l, -tr * l, det], pos = [0, c[0], c[0] + c[1], c[0] + c[1] + c[2]];
         const m = Math.max(Math.abs(pos[1]), Math.abs(pos[2]), Math.abs(c[0]), Math.abs(c[1]), Math.abs(c[2]), 1e-6);
         const s = Math.min(3, 3.4 / m), vv = pr.v, nn = [-vv[1], vv[0]];
@@ -241,6 +311,8 @@
         v.dot(0, 0, C.white, 6, C.bg);
         v.text("back at 0 ✓", 0, 0, C.white, 10, 20);
         v.text(s < 0.999 ? `drawn at scale ${ML.fmt(s, 2)}` : "", -4.0, 3.9, C.dim, 0, 0, "11px system-ui");
+        if (S.focus === 2) v.text("p(A)v = λ²v − tr·λ·v + det·v : three arrows head to tail", 0, -3.9, C.text, 0, 0, "700 13px system-ui", "center");
+        if (S.focus === 3) { v.circle(0, 0, 0.3, C.green, null, 3); v.text("p(λ) = 0 ⇒ the chain closes: p(A)v = 0", 0, -3.9, C.green, 0, 0, "700 13px system-ui", "center"); }
       });
 
       st.after = () => {
@@ -264,15 +336,22 @@
         out(rows, note);
       };
       st.redraw();
+      return {
+        showStep(i) {
+          S.focus = i;
+          if (i === 4) { S.prog = 0; anim.start(); } else { anim.stop(); S.prog = 1; }
+          st.redraw();
+        },
+      };
     },
 
     idea: String.raw`On an eigenvector \(A^kv=\lambda^kv\), so \(p(A)v=p(\lambda)v=0\). A linear map that is zero on a basis of eigenvectors is the zero map.`,
     steps: [
       { t: String.raw`Setup.`, d: String.raw`Let \(A\) be diagonalizable: there is a basis \(v_1,\dots,v_n\) of eigenvectors, \(Av_i=\lambda_iv_i\). Write \(p(x)=\sum_{k}a_kx^k\).` },
-      { t: String.raw`Powers on an eigenvector.`, d: String.raw`By induction \(A^kv_i=\lambda_i^kv_i\): indeed \(A^{k+1}v_i=A(\lambda_i^kv_i)=\lambda_i^k\,Av_i=\lambda_i^{k+1}v_i\).` },
-      { t: String.raw`Apply the polynomial.`, d: String.raw`By linearity \(p(A)v_i=\sum_ka_kA^kv_i=\Big(\sum_ka_k\lambda_i^k\Big)v_i=p(\lambda_i)\,v_i.\)` },
-      { t: String.raw`Each \(\lambda_i\) is a root of \(p\).`, d: String.raw`The eigenvalues are by definition the roots of the characteristic polynomial, so \(p(\lambda_i)=0\) and \(p(A)v_i=0\) for every \(i\).` },
-      { t: String.raw`A basis determines a linear map.`, d: String.raw`\(p(A)\) is linear and vanishes on a basis, so \(p(A)x=0\) for all \(x\). Hence \(p(A)=0\). \(\blacksquare\)` },
+      { fig: String.raw`Step 2: powers of \(A\) on an eigenvector. \(v\), \(Av=\lambda v\) and \(A^2v=\lambda^2v\) are three stretched copies of \(v\) on the same eigen-line (arrows offset only so you can see all three).`, t: String.raw`Powers on an eigenvector.`, d: String.raw`By induction \(A^kv_i=\lambda_i^kv_i\): indeed \(A^{k+1}v_i=A(\lambda_i^kv_i)=\lambda_i^k\,Av_i=\lambda_i^{k+1}v_i\).` },
+      { fig: String.raw`Step 3: \(p(A)v=\lambda^2v-\operatorname{tr}(A)\lambda v+\det(A)v\), drawn as three arrows laid head to tail: orange \(\lambda^2v\), purple \(-\operatorname{tr}\cdot\lambda v\), cyan \(\det\cdot v\). Their sum is \(p(\lambda)v\).`, t: String.raw`Apply the polynomial.`, d: String.raw`By linearity \(p(A)v_i=\sum_ka_kA^kv_i=\Big(\sum_ka_k\lambda_i^k\Big)v_i=p(\lambda_i)\,v_i.\)` },
+      { fig: String.raw`Step 4: \(\lambda\) is a root of \(p\), so the three arrows add up to zero: the chain closes back at the origin (green ring). Use the menu to check the other eigenvector.`, t: String.raw`Each \(\lambda_i\) is a root of \(p\).`, d: String.raw`The eigenvalues are by definition the roots of the characteristic polynomial, so \(p(\lambda_i)=0\) and \(p(A)v_i=0\) for every \(i\).` },
+      { fig: String.raw`Step 5: \(p(A)\) is zero on a basis, hence on the whole plane. Watch 16 sample points \(x\) (gold) being sent by \(p(A)\): they all collapse to the origin.`, t: String.raw`A basis determines a linear map.`, d: String.raw`\(p(A)\) is linear and vanishes on a basis, so \(p(A)x=0\) for all \(x\). Hence \(p(A)=0\). \(\blacksquare\)` },
       { t: String.raw`What about non-diagonalizable \(A\)?`, d: String.raw`The theorem is still true (for example via the adjugate identity \((\lambda I-A)\operatorname{adj}(\lambda I-A)=p(\lambda)I\), or because diagonalizable matrices are dense and \(p_A(A)\) is continuous in \(A\)). The proof above covers only the diagonalizable case; do not claim more on an exam.` },
     ],
     memorize: {

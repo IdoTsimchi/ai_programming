@@ -216,6 +216,110 @@ window.ML = window.ML || {};
   /** diverging stops for signed values (negative blue, zero dark, positive orange) */
   ML.DIVERGING = [[40, 90, 220], [22, 26, 52], [255, 150, 60]];
 
+  /** colour ramp: t in [0,1] -> "rgb(r,g,b)" */
+  ML.cmap = (t, stops) => {
+    const st = stops || [[28, 40, 120], [40, 140, 170], [110, 200, 130], [250, 228, 110]];
+    const k = st.length - 1, x = ML.clamp(t, 0, 1) * k, i = Math.min(k - 1, Math.floor(x)), u = x - i;
+    return `rgb(${st[i].map((c, ch) => Math.round(c + (st[i + 1][ch] - c) * u)).join(",")})`;
+  };
+
+  /**
+   * Tiny 3D engine (no WebGL): orthographic camera, drag to rotate, painter's-algorithm surface mesh.
+   * Use inside stage.draw: sc.begin(view); sc.box(); sc.surface(f); sc.curve3(...); ...
+   * World coordinates: x,y on the floor, z up. opt: {R: half-size of the floor, zR: half-height, az, el, zc}.
+   */
+  ML.scene3d = function (stage, opt) {
+    const o = Object.assign({ R: 2, zR: 2, az: -0.8, el: 0.5, zc: 0, zoom: 1 }, opt || {});
+    const sc = { az: o.az, el: o.el, o };
+    let ctx = null, w = 0, h = 0, S = 1;
+    const zs = () => o.R / o.zR;
+    sc.begin = (v) => { ctx = v.ctx; w = v.w; h = v.h; S = Math.min(w, h) / (o.R * 3.1) * o.zoom; };
+    sc.proj = (x, y, z) => {
+      const ca = Math.cos(sc.az), sa = Math.sin(sc.az), ce = Math.cos(sc.el), se = Math.sin(sc.el);
+      const x1 = x * ca - y * sa, y1 = x * sa + y * ca, zz = (z - o.zc) * zs();
+      return [w / 2 + S * x1, h / 2 - S * (zz * ce + y1 * se) + S * 0.1, y1 * ce - zz * se];
+    };
+    sc.line3 = (a, b, color = ML.C.text, width = 1.5, dash) => {
+      const p = sc.proj(...a), q = sc.proj(...b);
+      ctx.strokeStyle = color; ctx.lineWidth = width; ctx.lineCap = "round"; ctx.setLineDash(dash || []);
+      ctx.beginPath(); ctx.moveTo(p[0], p[1]); ctx.lineTo(q[0], q[1]); ctx.stroke(); ctx.setLineDash([]);
+    };
+    sc.arrow3 = (a, b, color = ML.C.text, width = 3) => {
+      const p = sc.proj(...a), q = sc.proj(...b), dx = q[0] - p[0], dy = q[1] - p[1], len = Math.hypot(dx, dy);
+      if (len < 2) return;
+      const ux = dx / len, uy = dy / len, hd = Math.min(11, len * 0.5);
+      ctx.strokeStyle = ctx.fillStyle = color; ctx.lineWidth = width; ctx.lineCap = "round"; ctx.setLineDash([]);
+      ctx.beginPath(); ctx.moveTo(p[0], p[1]); ctx.lineTo(q[0] - ux * hd * 0.6, q[1] - uy * hd * 0.6); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(q[0], q[1]);
+      ctx.lineTo(q[0] - ux * hd - uy * hd * 0.5, q[1] - uy * hd + ux * hd * 0.5);
+      ctx.lineTo(q[0] - ux * hd + uy * hd * 0.5, q[1] - uy * hd - ux * hd * 0.5);
+      ctx.closePath(); ctx.fill();
+    };
+    sc.dot3 = (p, color = ML.C.white, r = 5) => {
+      const q = sc.proj(...p); ctx.fillStyle = color; ctx.beginPath(); ctx.arc(q[0], q[1], r, 0, 7); ctx.fill();
+    };
+    sc.text3 = (str, p, color = ML.C.text, dx = 0, dy = 0, font = "600 12px system-ui, sans-serif") => {
+      const q = sc.proj(...p); ctx.fillStyle = color; ctx.font = font; ctx.fillText(str, q[0] + dx, q[1] + dy);
+    };
+    sc.curve3 = (fn, t0, t1, color = ML.C.gold, width = 2.5, n = 160) => {
+      ctx.strokeStyle = color; ctx.lineWidth = width; ctx.lineJoin = "round"; ctx.beginPath(); let on = false;
+      for (let i = 0; i <= n; i++) {
+        const pt = fn(t0 + (t1 - t0) * i / n);
+        if (!pt || pt.some((c) => !Number.isFinite(c))) { on = false; continue; }
+        const q = sc.proj(...pt); on ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1]); on = true;
+      }
+      ctx.stroke();
+    };
+    /** floor grid + x, y, z axes with labels */
+    sc.box = (labels = ["x", "y", "z"]) => {
+      const R = o.R, zl = o.zc - o.zR;
+      for (let t = -R; t <= R + 1e-9; t += R / 2) {
+        sc.line3([t, -R, zl], [t, R, zl], ML.C.grid, 1); sc.line3([-R, t, zl], [R, t, zl], ML.C.grid, 1);
+      }
+      sc.line3([-R, 0, o.zc], [R, 0, o.zc], ML.C.axis, 1.5); sc.line3([0, -R, o.zc], [0, R, o.zc], ML.C.axis, 1.5);
+      sc.line3([0, 0, zl], [0, 0, o.zc + o.zR], ML.C.axis, 1.5);
+      sc.text3(labels[0], [R, 0, o.zc], ML.C.dim, 4, 4); sc.text3(labels[1], [0, R, o.zc], ML.C.dim, 4, 4);
+      sc.text3(labels[2], [0, 0, o.zc + o.zR], ML.C.dim, 4, -4);
+    };
+    /** shaded surface z = f(x,y) over [-R,R]²; opts {n, rx, ry, zmin, zmax, stops, wire} */
+    sc.surface = (f, so) => {
+      const q = Object.assign({ n: 28, rx: [-o.R, o.R], ry: [-o.R, o.R], zmin: o.zc - o.zR, zmax: o.zc + o.zR, wire: true }, so || {});
+      const n = q.n, zc = (v) => ML.clamp(v, o.zc - o.zR * 1.2, o.zc + o.zR * 1.2), P = [];
+      for (let i = 0; i <= n; i++) { P[i] = []; for (let j = 0; j <= n; j++) {
+        const x = q.rx[0] + (q.rx[1] - q.rx[0]) * i / n, y = q.ry[0] + (q.ry[1] - q.ry[0]) * j / n, z = f(x, y);
+        P[i][j] = Number.isFinite(z) ? { x, y, z: zc(z), pr: sc.proj(x, y, zc(z)) } : null;
+      } }
+      const quads = [];
+      for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) {
+        const a = P[i][j], b = P[i + 1][j], c = P[i + 1][j + 1], d = P[i][j + 1];
+        if (!a || !b || !c || !d) continue;
+        quads.push({ v: [a, b, c, d], depth: (a.pr[2] + b.pr[2] + c.pr[2] + d.pr[2]) / 4, z: (a.z + b.z + c.z + d.z) / 4 });
+      }
+      quads.sort((m, k) => k.depth - m.depth);
+      for (const qd of quads) {
+        const t = (qd.z - q.zmin) / (q.zmax - q.zmin || 1);
+        ctx.fillStyle = ML.cmap(t, q.stops); ctx.beginPath();
+        qd.v.forEach((p, k) => (k ? ctx.lineTo(p.pr[0], p.pr[1]) : ctx.moveTo(p.pr[0], p.pr[1])));
+        ctx.closePath(); ctx.fill();
+        if (q.wire) { ctx.strokeStyle = "rgba(255,255,255,.16)"; ctx.lineWidth = 0.7; ctx.stroke(); }
+      }
+    };
+    /** let the user drag the canvas to rotate the camera */
+    sc.rotatable = () => {
+      const cv = stage.canvas; let drag = null; cv.classList.add("rot");
+      cv.addEventListener("pointerdown", (e) => { drag = [e.clientX, e.clientY]; cv.setPointerCapture(e.pointerId); });
+      cv.addEventListener("pointermove", (e) => {
+        if (!drag) return;
+        sc.az += (e.clientX - drag[0]) * 0.01; sc.el = ML.clamp(sc.el + (e.clientY - drag[1]) * 0.01, 0.05, 1.5);
+        drag = [e.clientX, e.clientY]; stage.redraw();
+      });
+      const stop = () => { drag = null; };
+      cv.addEventListener("pointerup", stop); cv.addEventListener("pointercancel", stop);
+    };
+    sc.hint = (v) => { ctx.fillStyle = ML.C.dim; ctx.font = "11px system-ui"; ctx.fillText("drag to rotate", 10, v.h - 10); };
+    return sc;
+  };
+
   /* ---------- controls ---------- */
   ML.slider = function (parent, { label, min, max, step = 0.01, value, fmt, onInput }) {
     const out = ML.h("b", {});
@@ -300,6 +404,26 @@ window.ML = window.ML || {};
     });
     const stop = () => { active = -1; };
     cv.addEventListener("pointerup", stop); cv.addEventListener("pointercancel", stop);
+  };
+
+  /**
+   * Animation loop bound to a stage. step(dtSeconds) returns false to stop. Stops itself when the page is left.
+   * const anim = ML.loop(st, (dt) => {...}); anim.start(); anim.stop(); anim.running
+   */
+  ML.loop = function (stage, step) {
+    let raf = 0, last = 0, running = false;
+    const tick = (now) => {
+      if (!running) return;
+      if (!document.body.contains(stage.canvas)) { running = false; return; }
+      const dt = last ? Math.min(0.1, (now - last) / 1000) : 0; last = now;
+      const cont = step(dt); stage.redraw();
+      if (cont !== false) raf = requestAnimationFrame(tick); else running = false;
+    };
+    return {
+      start() { if (running) return; running = true; last = 0; raf = requestAnimationFrame(tick); },
+      stop() { running = false; cancelAnimationFrame(raf); },
+      get running() { return running; },
+    };
   };
 
   /* ---------- progress (localStorage, safe) ---------- */

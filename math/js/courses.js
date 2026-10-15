@@ -17,12 +17,14 @@ ML.registerCourse({
 ML.registerCourse({
   id: "infi2",
   title: "Infinitesimal Calculus 2",
-  icon: "∂",
+  icon: "∑",
   color: "#6c8cff",
-  blurb: "Multivariable calculus: differentiability, extrema and multiple integrals, with every classic proof made visual.",
+  blurb: "Limits and continuity, Taylor approximation, Riemann integrals, series, and uniform convergence, with every classic proof made visual.",
   topics: [
-    { id: "diff", title: "Differentiability & the gradient", blurb: "What “differentiable” really means in several variables." },
-    { id: "extrema", title: "Extrema", blurb: "Critical points, the Hessian test and Lagrange multipliers." },
-    { id: "integrals", title: "Multiple integrals", blurb: "Iterated integrals and changes of variables." },
+    { id: "limits", title: "Limits & continuity", blurb: "The \u03B5\u2013\u03B4 definition, squeezing, and the big theorems on continuous functions." },
+    { id: "taylor", title: "Taylor & approximation", blurb: "Approximating functions by polynomials, and controlling the error." },
+    { id: "integrals", title: "Integrals", blurb: "Riemann sums, integrability, and the Fundamental Theorem of Calculus." },
+    { id: "series", title: "Series of numbers", blurb: "Geometric and infinite series, and the tests for convergence." },
+    { id: "funcseries", title: "Function series & uniform convergence", blurb: "Sequences and series of functions, power series, and why uniform convergence matters." },
   ],
 });

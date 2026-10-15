@@ -77,11 +77,29 @@
 
     /* viz */
     const vizBox = h("div", { class: "viz-box" });
-    try { p.viz(vizBox); } catch (e) { vizBox.append(h("p", { class: "error" }, "Visualization failed: " + e.message)); console.error(e); }
+    let api = {};
+    try { api = p.viz(vizBox) || {}; } catch (e) { vizBox.append(h("p", { class: "error" }, "Visualization failed: " + e.message)); console.error(e); }
+
+    /* banner: says exactly what the figure currently shows (the statement, or one proof step) */
+    const banner = h("div", { class: "fig-banner" });
+    const setBanner = (i) => {
+      const s = i >= 0 ? p.steps[i] : null;
+      banner.innerHTML = s && s.fig
+        ? `<span class="chip">Step ${i + 1}</span><span>${s.fig}</span><button class="link" type="button">show the whole statement</button>`
+        : `<span class="chip all">Whole statement</span><span>${p.shows || "An interactive illustration of the statement above."}</span>`;
+      const b = banner.querySelector("button"); if (b) b.onclick = () => focusStep(-1);
+      ML.typeset(banner);
+    };
+    const focusStep = (i) => {
+      steps.querySelectorAll("li").forEach((li, k) => li.classList.toggle("active", k === i));
+      setBanner(i);
+      if (api.showStep) api.showStep(i);
+    };
 
     /* steps with recall mode */
-    const steps = h("ol", { class: "steps" }, p.steps.map((s) =>
-      h("li", {}, h("div", { class: "step-title", html: s.t }), s.d ? h("div", { class: "step-body", html: s.d }) : null)));
+    const steps = h("ol", { class: "steps" }, p.steps.map((s, i) =>
+      h("li", {}, h("div", { class: "step-title", html: s.t }), s.d ? h("div", { class: "step-body", html: s.d }) : null,
+        s.fig ? h("button", { class: "show-btn", type: "button", onclick: (e) => { e.stopPropagation(); focusStep(i); banner.scrollIntoView({ behavior: "smooth", block: "center" }); } }, "▶ Show this step in the figure") : null)));
     steps.querySelectorAll("li").forEach((li) => li.addEventListener("click", () => li.classList.remove("hidden")));
     const recallBtn = h("button", { class: "btn" }, "🙈 Test myself");
     let recall = false;
@@ -115,6 +133,7 @@
       h("div", { class: "statement" }, h("b", {}, "Statement. "), h("span", { html: p.statement })),
       h("h2", { class: "sec" }, "1 · Play with it"),
       p.vizIntro ? h("p", { class: "viz-intro", html: p.vizIntro }) : null,
+      banner,
       vizBox,
       p.vizNote ? h("p", { class: "viz-note", html: p.vizNote }) : null,
       h("h2", { class: "sec" }, "2 · The proof, step by step"),
@@ -127,6 +146,7 @@
         h("div", { class: "pn" },
           prev ? h("a", { class: "btn", href: `#/proof/${prev.id}` }, "← " + prev.title) : null,
           next ? h("a", { class: "btn", href: `#/proof/${next.id}` }, next.title + " →") : null)));
+    setBanner(-1);
     ML.typeset(page);
     return page;
   }
